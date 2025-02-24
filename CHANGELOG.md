@@ -1,3 +1,18 @@
+## v0.13.0
+
+### Added
+- Option to ignore diagonal inputs from the D-Pad
+- Option to use the background palette 0 color (prevents screen transition flashing)
+- Option to set low battery icon display behavior
+- Added message to brightness to indicate low power mode is active
+- Added hot keys to the Controls tab
+
+### Changed
+- Tuned battery voltage thresholds for 1.2V NiMH AA's
+- Prevent backlight adjustments when in low power mode
+- Renamed 'USB Color Correction' menu option to 'Streaming'
+- Redesigned Controls tab, toggle option text
+
 ## v0.12.3
 
 ### Note

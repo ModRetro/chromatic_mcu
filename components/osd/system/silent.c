@@ -1,0 +1,189 @@
+#include "silent.h"
+
+#include "esp_log.h"
+#include "osd_shared.h"
+#include "lvgl.h"
+#include "mutex.h"
+
+LV_IMG_DECLARE(img_toggle_on);
+LV_IMG_DECLARE(img_toggle_off);
+
+enum {
+    kToggleBtnX_px = 77,
+    kToggleBtnY_px = 55,
+
+    kMsgStateOnX_px = kToggleBtnX_px + 14,
+    kMsgStateOff_px = kToggleBtnX_px + 44,
+    kMsgStateY_px   = kToggleBtnY_px + 12,
+};
+
+typedef struct SilentMode {
+    lv_obj_t* pMsgStateObj;
+    lv_obj_t* pImgToggleOffObj;
+    lv_obj_t* pImgToggleOnObj;
+    SilentModeState_t eCurrentState;
+    fnOnUpdateCb_t fnOnUpdateCb;
+} SilentMode_t;
+
+static const char* TAG = "SilentMode";
+static SilentMode_t _Ctx;
+
+static void SaveToSettings(const SilentModeState_t eNewState);
+
+OSD_Result_t SilentMode_Draw(void* arg)
+{
+    if (arg == NULL)
+    {
+        return kOSD_Result_Err_NullDataPtr;
+    }
+
+    lv_obj_t *const pScreen = (lv_obj_t *const) arg;
+
+    if (_Ctx.pMsgStateObj == NULL)
+    {
+        _Ctx.pMsgStateObj = lv_label_create(pScreen);
+
+        lv_obj_add_style(_Ctx.pMsgStateObj, OSD_GetStyleTextBlack(), 0);
+        lv_obj_set_align(_Ctx.pMsgStateObj, LV_ALIGN_TOP_LEFT);
+    }
+
+    if (_Ctx.eCurrentState == kSilentModeState_Off)
+    {
+        if (_Ctx.pImgToggleOffObj == NULL)
+        {
+            _Ctx.pImgToggleOffObj = lv_img_create(pScreen);
+            lv_obj_align(_Ctx.pImgToggleOffObj, LV_ALIGN_TOP_LEFT, kToggleBtnX_px, kToggleBtnY_px);
+            lv_img_set_src(_Ctx.pImgToggleOffObj, &img_toggle_off);
+
+            lv_obj_set_pos(_Ctx.pMsgStateObj, kMsgStateOff_px, kMsgStateY_px);
+            lv_label_set_text_static(_Ctx.pMsgStateObj, "OFF");
+        }
+    }
+    else
+    {
+        if (_Ctx.pImgToggleOnObj == NULL)
+        {
+            _Ctx.pImgToggleOnObj = lv_img_create(pScreen);
+            lv_obj_align(_Ctx.pImgToggleOnObj, LV_ALIGN_TOP_LEFT, kToggleBtnX_px, kToggleBtnY_px);
+            lv_img_set_src(_Ctx.pImgToggleOnObj, &img_toggle_on);
+
+            lv_obj_set_pos(_Ctx.pMsgStateObj, kMsgStateOnX_px, kMsgStateY_px);
+            lv_label_set_text_static(_Ctx.pMsgStateObj, "ON");
+        }
+    }
+
+    lv_obj_move_foreground(_Ctx.pMsgStateObj);
+
+    return kOSD_Result_Ok;
+}
+
+void SilentMode_Update(const SilentModeState_t eNewState)
+{
+    if ((unsigned)eNewState >= kNumSilentModeStates)
+    {
+        return;
+    }
+
+    SilentMode_OnTransition(NULL);
+
+    if (Mutex_Take(kMutexKey_SilentMode) == kMutexResult_Ok)
+    {
+        const SilentModeState_t eCurrentState = _Ctx.eCurrentState;
+        _Ctx.eCurrentState = eNewState;
+
+        if (eNewState != eCurrentState)
+        {
+            SaveToSettings(eNewState);
+        }
+
+        (void) Mutex_Give(kMutexKey_SilentMode);
+    }
+
+    if (_Ctx.fnOnUpdateCb != NULL)
+    {
+        _Ctx.fnOnUpdateCb();
+    }
+}
+
+OSD_Result_t SilentMode_OnButton(const Button_t Button, const ButtonState_t State, void* arg)
+{
+    (void)arg;
+
+    switch (Button)
+    {
+        case kButton_A:
+        {
+            if (State == kButtonState_Pressed)
+            {
+                ESP_LOGI(TAG, "Updating Silent Mode from %d", _Ctx.eCurrentState);
+
+                SilentMode_Update(_Ctx.eCurrentState ^ 1);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    return kOSD_Result_Ok;
+}
+
+OSD_Result_t SilentMode_OnTransition(void* arg)
+{
+    (void)arg;
+
+    lv_obj_t** ToDelete[] = {
+        &_Ctx.pImgToggleOffObj,
+        &_Ctx.pImgToggleOnObj,
+        &_Ctx.pMsgStateObj,
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(ToDelete); i++)
+    {
+        if (*ToDelete[i] != NULL)
+        {
+            lv_obj_del(*ToDelete[i]);
+            *(ToDelete[i]) = NULL;
+        }
+    }
+
+    return kOSD_Result_Ok;
+}
+
+SilentModeState_t SilentMode_GetState(void)
+{
+    return _Ctx.eCurrentState;
+}
+
+OSD_Result_t SilentMode_ApplySetting(SettingValue_t const *const pValue)
+{
+    if (pValue == NULL)
+    {
+        return kOSD_Result_Err_NullDataPtr;
+    }
+
+    if (pValue->eType == kSettingDataType_U8)
+    {
+        const SilentModeState_t eState = (pValue->U8 == 0) ? kSilentModeState_Off : kSilentModeState_On;
+        _Ctx.eCurrentState = eState;
+    }
+    else
+    {
+        return kOSD_Result_Err_UnexpectedSettingDataType;
+    }
+
+    return kOSD_Result_Ok;
+}
+
+void SilentMode_RegisterOnUpdateCb(fnOnUpdateCb_t fnOnUpdate)
+{
+    _Ctx.fnOnUpdateCb = fnOnUpdate;
+}
+
+static void SaveToSettings(const SilentModeState_t eNewState)
+{
+    OSD_Result_t eResult;
+    if ((eResult = Settings_Update(kSettingKey_SilentMode, eNewState)) != kOSD_Result_Ok)
+    {
+        ESP_LOGE(TAG, "Silent mode save failed: %d", eResult);
+    }
+}
