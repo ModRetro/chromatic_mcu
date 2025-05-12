@@ -10,3 +10,4 @@ void FPGA_Tx_Pause(void);
 void FPGA_Tx_SendAll(void);
 void FPGA_Tx_WriteBrightness(void);
 void FPGA_Tx_SendSysCtl(void);
+void FPGA_Tx_PokeButtons(void);

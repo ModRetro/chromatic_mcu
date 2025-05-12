@@ -1,0 +1,8 @@
+menu "Top-Level Chromatic Firmware Version"
+config CHROMATIC_FW_VER_STR
+	string "Firmware Version"
+	default "0.0"
+	help
+		The Major.Minor pair which describes a Chromatic firmware release package.
+		It shall be updated any time the Chromatic microcontroller or FPGA is revised.
+endmenu

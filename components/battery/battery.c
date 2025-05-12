@@ -57,7 +57,7 @@ const float kAA_Level_Mid_V  = 3.15f;
 const float kAA_Level_Low_V  = 2.80f;
 const float kAA_Level_Depleted_V = 2.60f;
 
-const float kLiPo_Level_High_V = 3.75f;
+const float kLiPo_Level_High_V = 3.60f;
 const float kLiPo_Level_Mid_V  = 3.40f;
 const float kLiPo_Level_Low_V  = 3.10f;
 const float kLiPo_Level_Depleted_V = 3.00f;
@@ -297,6 +297,14 @@ static OSD_Result_t Battery_Draw(void* arg)
 
     lv_obj_t *pScreen = (lv_obj_t*)arg;
 
+    float BatteryLevel_V = 0.0f;
+    if (Mutex_Take(kMutexKey_Battery) == kMutexResult_Ok)
+    {
+        BatteryLevel_V = _ctx.battLevel_V;
+        (void) Mutex_Give(kMutexKey_Battery);
+    }
+
+
     #ifdef BATT_DISP_VOLTAGE
     if (_ctx.pBattVoltageText == NULL)
     {
@@ -330,14 +338,6 @@ static OSD_Result_t Battery_Draw(void* arg)
         lv_obj_move_foreground(_ctx.pBattRawVoltageText);
     }
     #endif
-
-    float BatteryLevel_V = 0.0f;
-
-    if (Mutex_Take(kMutexKey_Battery) == kMutexResult_Ok)
-    {
-        BatteryLevel_V = _ctx.battLevel_V;
-        (void) Mutex_Give(kMutexKey_Battery);
-    }
 
 #if defined(ESP_PLATFORM)
     // Wait a bit before displaying the battery widget to ensure the FPGA battery voltage sensing stabilizes.

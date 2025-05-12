@@ -152,6 +152,7 @@ static void register_update_callbacks(void)
     ScreenTransitCtl_RegisterOnUpdateCb(FPGA_Tx_SendSysCtl);
     DPadCtl_RegisterOnUpdateCb(FPGA_Tx_SendSysCtl);
     LowBattIconCtl_RegisterOnUpdateCb(FPGA_Tx_SendSysCtl);
+    Button_RegisterOnButtonPokeCb(FPGA_Tx_PokeButtons);
 }
 
 static void persist_storage_init(void)
@@ -159,6 +160,7 @@ static void persist_storage_init(void)
     Settings_Initialize();
     Firmware_Initialize();
     SerialNum_Initialize();
+    Button_RegisterCommands();
 
     const fnSettingApply_t fnApplySetting[kNumSettingKeys] = {
         [kSettingKey_FrameBlend]       = FrameBlend_ApplySetting,

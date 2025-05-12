@@ -24,3 +24,4 @@ void FPGA_RxTask(void *arg);
 void FPGA_Rx_Resume(void);
 void FPGA_Rx_Pause(void);
 void FPGA_Rx_UseBrightnessReadback(void);
+void FPGA_Tx_PokeButtons(void);

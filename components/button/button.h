@@ -37,8 +37,13 @@ typedef enum ButtonBits {
     kButtonBits_MenuEnAlt = (1 << kButton_MenuEnAlt),
 } ButtonBits_t;
 
+typedef void (*fnOnButtonPokeCb_t)(void);
+
 void Button_Update(const uint16_t NewButtons);
 ButtonState_t Button_GetState(const Button_t b);
 const char* Button_GetNameStr(const Button_t b);
 const char* Button_GetStateStr(const ButtonState_t s);
 void Button_ResetAll(void);
+void Button_RegisterOnButtonPokeCb(fnOnButtonPokeCb_t Handler);
+uint16_t Button_GetPokedInputs(void);
+void Button_RegisterCommands(void);

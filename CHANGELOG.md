@@ -1,3 +1,11 @@
+## v0.13.2
+
+### Added
+- The ability to mock button to the FPGA.
+
+### Changed
+- Simplified the firmware version reported the system tab. Press A to see details.
+
 ## v0.13.0
 
 ### Added

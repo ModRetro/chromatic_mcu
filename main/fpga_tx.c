@@ -27,6 +27,7 @@ enum {
     kFlag_SetBrightness,
     kFlag_SetSysCtl,
     kFlag_RequestFWVer,
+    kFlag_PokeButton,
     kNumFlags,
 };
 
@@ -35,6 +36,7 @@ typedef enum {
     kTxFlag_WriteBrightness  = (1 << kFlag_SetBrightness),
     kTxFlag_SetSysCtl        = (1 << kFlag_SetSysCtl),
     kTxFlag_RequestFWVer     = (1 << kFlag_RequestFWVer),
+    kTxFlag_PokeButton       = (1 << kFlag_PokeButton),
 
     kTxFlag_AllFlags         = ((1 << kNumFlags) - 1),
 } TxFlags_t;
@@ -47,6 +49,7 @@ typedef enum {
     kTxCmd_SysCtrl      = 0x4,
     kTxCmd_BacklightCtl = 0x5,
     kTxCmd_ReqFWVer     = 0x6,
+    kTxCmd_PokeButton   = 0x9,
 
     kNumTxCmds,
 } TxIDs_t;
@@ -84,7 +87,7 @@ void FPGA_TxTask(void *arg)
 
         const EventBits_t EventBits = xEventGroupWaitBits(
             xEventGroupHandle,
-            (kTxFlag_WriteBrightness | kTxFlag_SetSysCtl | kTxFlag_RequestFWVer),
+            (kTxFlag_WriteBrightness | kTxFlag_SetSysCtl | kTxFlag_RequestFWVer | kTxFlag_PokeButton),
             pdTRUE, // DO clear the flags to complete the request
             pdFALSE, // Any bit will do
             pdMS_TO_TICKS(100)
@@ -126,6 +129,13 @@ void FPGA_TxTask(void *arg)
             (void) uart_write_bytes(UART_NUM_1, TxBuffer, Size);
         }
 
+        if ((EventBits & kTxFlag_PokeButton) == kTxFlag_PokeButton)
+        {
+            const uint16_t PokedButtons = Button_GetPokedInputs();
+            const size_t Size = SetupTxBuffer(TxBuffer, kTxCmd_PokeButton, sizeof(PokedButtons), (void*)&PokedButtons);
+            (void) uart_write_bytes(UART_NUM_1, TxBuffer, Size);
+        }
+
         memset(TxBuffer, 0x0, sizeof(TxBuffer));
     }
 
@@ -155,6 +165,11 @@ void FPGA_Tx_WriteBrightness(void)
 void FPGA_Tx_SendSysCtl(void)
 {
    (void) xEventGroupSetBits(xEventGroupHandle, kTxFlag_SetSysCtl);
+}
+
+void FPGA_Tx_PokeButtons(void)
+{
+   (void) xEventGroupSetBits(xEventGroupHandle, kTxFlag_PokeButton);
 }
 
 static size_t SetupTxBuffer(uint8_t *const pBuffer, TxIDs_t eID, uint8_t Len, void* pData)

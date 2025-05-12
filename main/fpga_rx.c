@@ -300,8 +300,15 @@ static void ProcessMessage(const RxMsg_t *const pMsg)
         }
         case kRxCmd_Buttons:
             Button_Update(rxdata);
-            // Hack: If we're getting button data, then the OSD is displayed
-            OSD_SetVisiblityState(true);
+            if ((rxdata & kButtonBits_MenuEnAlt) != 0 || (rxdata & kButtonBits_MenuEn) != 0)
+            {
+                OSD_SetVisiblityState(false);
+            }
+            else
+            {
+                // Hack: If we're getting button data, then the OSD is displayed
+                OSD_SetVisiblityState(true);
+            }
             break;
         case kRxCmd_AudioBrightness:
         {

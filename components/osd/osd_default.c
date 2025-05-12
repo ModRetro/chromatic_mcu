@@ -314,6 +314,7 @@ static void CreateMenuSystem(lv_obj_t *const pScreen)
             .Name = "FIRMWARE",
             .fnDraw = Firmware_Draw,
             .fnOnTransition = Firmware_OnTransition,
+            .fnOnButton = Firmware_OnButton,
         },
     };
 
