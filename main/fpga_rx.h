@@ -12,6 +12,7 @@ typedef enum {
     kRxCmd_FWVer           = 0x6,
     kRxCmd_Reserved        = 0x7,
     kRxCmd_StatusExtended  = 0x8,
+    kRxCmd_BGPalette       = 0x9,
 
     kNumRxCmds,
 } RxIDs_t;

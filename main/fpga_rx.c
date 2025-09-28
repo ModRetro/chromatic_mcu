@@ -18,6 +18,7 @@
 #include "pwrmgr.h"
 #include "player_num.h"
 #include "silent.h"
+#include "style.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -360,13 +361,30 @@ static void ProcessMessage(const RxMsg_t *const pMsg)
         case kRxCmd_StatusExtended:
         {
             const bool InLPM = (bool)(pMsg->PayloadU32 & 1);
+            const bool GBCMode = (bool)((pMsg->PayloadU32 >> 1) & 1);
 
             PwrMgr_SetLPM(InLPM);
+            Style_SetGBCMode(GBCMode);
             break;
         }
         case kRxCmd_Reserved:
         {
             break;
+        }
+        case kRxCmd_BGPalette:
+        {
+            if (pMsg->Len == 8) 
+            {
+                uint64_t paletteBGRaw = 0;
+                memcpy(&paletteBGRaw, pMsg->Payload, 8);
+                const uint64_t paletteBG = __builtin_bswap64(paletteBGRaw);
+                Style_SetHKPaletteBG(paletteBG);
+            } else 
+            {
+                ESP_LOGW(TAG, "BG Palette readback: unexpected length %d", pMsg->Len);
+            }
+            break;
+
         }
         default:
             ESP_LOGE(TAG, "Unknown cmd: %d", pMsg->Addr);

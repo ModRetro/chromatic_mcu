@@ -1,3 +1,18 @@
+## v0.13.3
+
+### Note
+The FPGA must be updated to v18.6 or newer for palette selection and updated
+frame blending behavior.
+
+### Added
+- The ability to change the color palette for non-GBC titles through a Palette tab.
+
+### Changed
+- Renamed the frame blending toggle button text to "1:1" from "3:1" to clarify
+the updated FPGA approach.
+- Added redundancy to two-option menu widgets. Press B to toggle previous choice.
+- Added up/down roll over to bottom/top for OSD navigation.
+
 ## v0.13.2
 
 ### Added

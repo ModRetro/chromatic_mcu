@@ -115,9 +115,28 @@ OSD_Result_t SilentMode_OnButton(const Button_t Button, const ButtonState_t Stat
         {
             if (State == kButtonState_Pressed)
             {
-                ESP_LOGI(TAG, "Updating Silent Mode from %d", _Ctx.eCurrentState);
+                SilentModeState_t NewState = _Ctx.eCurrentState + 1;
+                NewState %= kNumSilentModeStates;
 
-                SilentMode_Update(_Ctx.eCurrentState ^ 1);
+                SilentMode_Update(NewState);
+            }
+            break;
+        }
+        case kButton_B:
+        {
+            if (State == kButtonState_Pressed)
+            {
+                SilentModeState_t NewState = _Ctx.eCurrentState;
+                if (NewState > 0)
+                {
+                    NewState--;
+                }
+                else
+                {
+                    NewState = kNumSilentModeStates - 1;
+                }
+
+                SilentMode_Update(NewState);
             }
             break;
         }

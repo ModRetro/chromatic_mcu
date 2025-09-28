@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 idf_component_register(SRCS
                         "controls/dpad_ctl.c"
                         "controls/hotkeys.c"
+                        "palette/style.c"
                         "display/frameblend.c"
                         "display/color_correct_lcd.c"
                         "display/color_correct_usb.c"
@@ -19,6 +20,7 @@ idf_component_register(SRCS
                         "."
                         "controls/"
                         "status/"
+                        "palette/"
                         "display/"
                         "system/"
                     REQUIRES battery common dlist menu_mgr

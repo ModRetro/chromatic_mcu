@@ -9,6 +9,7 @@ typedef enum TabID {
     kTabID_Status,
     kTabID_Display,
     kTabID_Controls,
+    kTabID_Palette,
     kTabID_System,
     kNumTabIDs,
 

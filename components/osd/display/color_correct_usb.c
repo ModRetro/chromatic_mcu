@@ -123,10 +123,28 @@ OSD_Result_t ColorCorrectUSB_OnButton(const Button_t Button, const ButtonState_t
         {
             if (State == kButtonState_Pressed)
             {
-                const ColorCorrectUSBState_t eState = _Ctx.eCurrentState;
-                ESP_LOGI(TAG, "Updating Color Correction USB from %d", eState);
+                ColorCorrectUSBState_t NewState = _Ctx.eCurrentState + 1;
+                NewState %= kNumColorCorrectUSBState;
 
-                ColorCorrectUSB_Update(eState ^ 1);
+                ColorCorrectUSB_Update(NewState);
+            }
+            break;
+        }
+        case kButton_B:
+        {
+            if (State == kButtonState_Pressed)
+            {
+                ColorCorrectUSBState_t NewState = _Ctx.eCurrentState;
+                if (NewState > 0)
+                {
+                    NewState--;
+                }
+                else
+                {
+                    NewState = kNumColorCorrectUSBState - 1;
+                }
+
+                ColorCorrectUSB_Update(NewState);
             }
             break;
         }

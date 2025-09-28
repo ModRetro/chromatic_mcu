@@ -132,6 +132,8 @@ static OSD_Result_t MenuMgr_OnButton(const Button_t Button, const ButtonState_t 
         // Fall-through
         case kButton_B:
         case kButton_A:
+        case kButton_Down:
+        case kButton_Up:
             if (pTab->Widget.fnOnButton != NULL)
             {
                 const OSD_Result_t eResult = pTab->Widget.fnOnButton(Button, State, pTab->Menu);
@@ -154,22 +156,6 @@ static OSD_Result_t MenuMgr_OnButton(const Button_t Button, const ButtonState_t 
                 MenuMgr_NextTab();
             }
             break;
-        case kButton_Down:
-        {
-            if (State == kButtonState_Pressed)
-            {
-                Tab_Next(pTab->Menu);
-            }
-            break;
-        }
-        case kButton_Up:
-        {
-            if (State == kButtonState_Pressed)
-            {
-                Tab_Prev(pTab->Menu);
-            }
-            break;
-        }
         default:
             break;
     }

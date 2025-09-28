@@ -5,10 +5,12 @@
 #include "tab_shared.h"
 #include "tab_list.h"
 #include "tab_dots.h"
+#include "tab_table.h"
 #include "status/fw.h"
 #include "status/brightness.h"
 #include "controls/dpad_ctl.h"
 #include "controls/hotkeys.h"
+#include "palette/style.h"
 #include "display/color_correct_lcd.h"
 #include "display/color_correct_usb.h"
 #include "display/frameblend.h"
@@ -24,14 +26,16 @@
 
 static const char *TAG = "OSDDef";
 
-LV_IMG_DECLARE(menu_controls);
-LV_IMG_DECLARE(menu_display);
 LV_IMG_DECLARE(menu_status);
+LV_IMG_DECLARE(menu_display);
+LV_IMG_DECLARE(menu_controls);
+LV_IMG_DECLARE(menu_palette);
 LV_IMG_DECLARE(menu_system);
 
 static void CreateMenuStatus(lv_obj_t *const pScreen);
 static void CreateMenuDisplay(lv_obj_t *const pScreen);
 static void CreateMenuControls(lv_obj_t *const pScreen);
+static void CreateMenuPalette(lv_obj_t *const pScreen);
 static void CreateMenuSystem(lv_obj_t *const pScreen);
 
 void OSD_Default_Init(lv_obj_t *const pScreen)
@@ -61,6 +65,7 @@ void OSD_Default_Init(lv_obj_t *const pScreen)
     CreateMenuStatus(pScreen);
     CreateMenuDisplay(pScreen);
     CreateMenuControls(pScreen);
+    CreateMenuPalette(pScreen);
     CreateMenuSystem(pScreen);
 
     OSD_AddWidget(&Battery);
@@ -287,6 +292,70 @@ static void CreateMenuControls(lv_obj_t *const pScreen)
         return;
     }
 
+}
+
+static void CreateMenuPalette(lv_obj_t *const pScreen)
+{
+    static TabCollection_t PaletteList;
+    TabCollection_t *pList = &PaletteList;
+    OSD_Result_t eResult;
+
+    sys_dlist_init(&PaletteList.WidgetList);
+
+    static MenuTab_t Tab_Palette = {
+        .Widget = {
+            .Name = "MenuPalette",
+            .fnDraw = TabTable_Draw,
+            .fnOnButton = Tab_OnButton, 
+            .fnOnTransition =  TabList_OnTransition,  // TabTable has same object lifetime behavior as TabList
+        },
+        .pImageDesc = &menu_palette,
+        .Menu = &PaletteList,
+    };
+    Tab_Palette.Accent = lv_color_make(0x92, 0x4E, 0xD7);  // Unused in actual selection
+
+    static TabItem_t PaletteOpts[kNumPalettes];
+    const char *PaletteStyleNames[kNumPalettes] = {
+        [kPalette_Default]   = "DEFAULT",
+        [kPalette_Brown]     = "BROWN",          // Up
+        [kPalette_Blue]      = "BLUE",           // Left
+        [kPalette_Pastel]    = "PASTEL",         // Down
+        [kPalette_Green]     = "GREEN",          // Right
+        [kPalette_Red]       = "RED",            // Up + A
+        [kPalette_DarkBlue]  = "DARK BLUE",      // Left + A 
+        [kPalette_Orange]    = "ORANGE",         // Down + A
+        [kPalette_DarkGreen] = "DARK GREEN",     // Right + A
+        [kPalette_DarkBrown] = "DARK BROWN",     // Up + B
+        [kPalette_Grayscale] = "GRAYSCALE",      // Left + B
+        [kPalette_Yellow]    = "YELLOW",         // Down + B
+        [kPalette_Negative]  = "NEGATIVE",       // Right + B
+        [kPalette_DMG1]      = "DMG1: GAMEBOY",  // Right + A + B
+        [kPalette_DMG2]      = "DMG2: GAMEBOY"   // Left + A + B
+    };
+
+    for (StyleID_t ID = 0; ID < kNumPalettes; ID++)
+    {
+        PaletteOpts[ID] = (TabItem_t){
+            .Widget = {
+                .Name = PaletteStyleNames[ID],
+                .fnDraw = Style_Draw,
+                .fnOnButton = Style_OnButton,
+                .fnOnTransition = Style_OnTransition,
+            },
+        };
+
+        if ((eResult = Tab_AddItem(pList, &PaletteOpts[ID], pScreen)) != kOSD_Result_Ok)
+        {
+            ESP_LOGE(TAG, "%s tab item init failed %d", PaletteOpts[ID].Widget.Name, eResult);
+            return;
+        }
+    }
+
+    if ((eResult = MenuMgr_AddTab(kTabID_Palette, &Tab_Palette)) != kOSD_Result_Ok)
+    {
+        ESP_LOGE(TAG, "%s widget init failed %d", Tab_Palette.Widget.Name, eResult);
+        return;
+    }
 }
 
 static void CreateMenuSystem(lv_obj_t *const pScreen)

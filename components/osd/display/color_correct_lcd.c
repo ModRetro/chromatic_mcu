@@ -98,9 +98,28 @@ OSD_Result_t ColorCorrectLCD_OnButton(const Button_t Button, const ButtonState_t
         {
             if (State == kButtonState_Pressed)
             {
-                ESP_LOGI(TAG, "Updating Color Correction LCD from %d", _Ctx.eCurrentState);
+                ColorCorrectLCDState_t NewState = _Ctx.eCurrentState + 1;
+                NewState %= kNumColorCorrectLCDState;
 
-                ColorCorrectLCD_Update(_Ctx.eCurrentState ^ 1);
+                ColorCorrectLCD_Update(NewState);
+            }
+            break;
+        }
+        case kButton_B:
+        {
+            if (State == kButtonState_Pressed)
+            {
+                ColorCorrectLCDState_t NewState = _Ctx.eCurrentState;
+                if (NewState > 0)
+                {
+                    NewState--;
+                }
+                else
+                {
+                    NewState = kNumColorCorrectLCDState - 1;
+                }
+
+                ColorCorrectLCD_Update(NewState);
             }
             break;
         }

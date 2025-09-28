@@ -176,10 +176,28 @@ OSD_Result_t DPadCtl_OnButton(const Button_t Button, const ButtonState_t State, 
         {
             if (State == kButtonState_Pressed)
             {
-                const DPadCtlState_t eState = _Ctx.eCurrentState;
-                ESP_LOGI(TAG, "Updating D-Pad directional control from %d", eState);
+                DPadCtlState_t NewState = _Ctx.eCurrentState + 1;
+                NewState %= kNumDPadCtlState;
 
-                DPadCtl_Update(eState ^ 1);
+                DPadCtl_Update(NewState);
+            }
+            break;
+        }
+        case kButton_B:
+        {
+            if (State == kButtonState_Pressed)
+            {
+                DPadCtlState_t NewState = _Ctx.eCurrentState;
+                if (NewState > 0)
+                {
+                    NewState--;
+                }
+                else
+                {
+                    NewState = kNumDPadCtlState - 1;
+                }
+
+                DPadCtl_Update(NewState);
             }
             break;
         }

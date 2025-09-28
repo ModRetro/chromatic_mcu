@@ -12,6 +12,7 @@ typedef enum SettingKey {
     kSettingKey_ScreenTransitCtl,
     kSettingKey_DPadCtl,
     kSettingKey_LowBattIconCtl,
+    kSettingKey_PaletteStyleID,
     kNumSettingKeys,
 
     kSettingKey_FirstKey = kSettingKey_FrameBlend,

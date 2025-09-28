@@ -17,27 +17,48 @@ LV_IMG_DECLARE(img_chromatic);
 
 enum {
     kMaxVerLen = 16,
+    kTextH_px  = 5,
 
-    kTextX_px = 80,
-    kTextY_px = 40,
+    kOriginX_px = 73,  // top left corner of right section
+    kOriginY_px = 38,
 
-    kTextFWVerY_px   = kTextY_px + 21,
+    kHeaderPadX_px = 4,
+    kHeaderPadY_px = 6,
 
-    kTextDetailsVerX_px = kTextX_px + 20,
-    kTextFPGAVerY_px = kTextY_px + 24,
-    kTextMCUVerY_px = kTextY_px + 15,
+    kDetailsPadX_px = kHeaderPadX_px,
+    kDetailsPadY_px = kHeaderPadY_px + kTextH_px + 6,
+    kDetailsH_px    = 18,
+    kDetailsW_px    = 65,
+
+    kChromaticX_px = -17,  // Relative to bottom right
+    kChromaticY_px = -38,
+
+    kTextPadY_px  = kTextH_px + 3,  // Offset between lines of text
+    kTitlePadX_px = 20              // Offset for title vs version text
 };
 
-static const lv_point_t MessageOrigin = {.x = kTextX_px, .y = kTextY_px};
-static const lv_point_t FWVerOrigin = {.x = kTextX_px, .y = kTextFWVerY_px };
-static const lv_point_t FPGAVerOrigin = {.x = kTextDetailsVerX_px, .y = kTextFPGAVerY_px };
-static const lv_point_t MCUVerOrigin = {.x = kTextDetailsVerX_px, .y = kTextMCUVerY_px };
+static const lv_point_t HeaderOrigin    = {.x = kOriginX_px + kHeaderPadX_px, .y = kOriginY_px + kHeaderPadY_px};
+static const lv_point_t DetailsOrigin   = {.x = kOriginX_px + kDetailsPadX_px, .y = kOriginY_px + kDetailsPadY_px};
+static const lv_point_t ChromaticOrigin = {.x = kChromaticX_px, .y = kChromaticY_px};
+static const lv_point_t FWTitleOrigin   = {.x = 0, .y = 0 };  // Relative to DetailsOrigin
+static const lv_point_t FWVerOrigin     = {.x = FWTitleOrigin.x + kTitlePadX_px, .y = FWTitleOrigin.y };
+static const lv_point_t MCUTitleOrigin  = {.x = 0, .y = 0 };
+static const lv_point_t MCUVerOrigin    = {.x = MCUTitleOrigin.x + kTitlePadX_px, .y = MCUTitleOrigin.y };
+static const lv_point_t FPGATitleOrigin = {.x = 0, .y = MCUVerOrigin.y + kTextPadY_px };
+static const lv_point_t FPGAVerOrigin   = {.x = FPGATitleOrigin.x + kTitlePadX_px, .y = FPGATitleOrigin.y };
+static const lv_point_t DetailsSize     = {.x = kDetailsW_px, .y = kDetailsH_px};
 
 typedef struct Firmware {
-    lv_obj_t* pMessageObj;
-    lv_obj_t* pFWVersionObj;
-    lv_obj_t* pFPGAVersionObj;
+    lv_obj_t* pHeaderObj;
+    lv_obj_t* pDetailsObj;
     lv_obj_t* pChromaticImgObj;
+    /* Cached child objects inside pDetailsObj to avoid recreating on every draw */
+    lv_obj_t* pMCUTitle;
+    lv_obj_t* pMCUInfo;
+    lv_obj_t* pFPGATitle;
+    lv_obj_t* pFPGAInfo;
+    lv_obj_t* pFWTitle;
+    lv_obj_t* pFWInfo;
     char ChromaticFWVerStr[kMaxVerLen];
     char AppFWVerStr[kMaxVerLen];
     char FPGAVerStr[kMaxVerLen];
@@ -64,41 +85,61 @@ OSD_Result_t Firmware_Draw(void* arg)
 
     lv_obj_t *const pScreen = (lv_obj_t *const) arg;
 
-    if (_Ctx.pMessageObj == NULL)
+    if (_Ctx.pHeaderObj == NULL)
     {
-        _Ctx.pMessageObj = lv_label_create(pScreen);
-        // Print the firmware message
-        lv_obj_add_style(_Ctx.pMessageObj, OSD_GetStyleTextGrey(), 0);
+        _Ctx.pHeaderObj = lv_label_create(pScreen);
+        lv_label_set_text(_Ctx.pHeaderObj, "SYSTEM    INFO");
+        lv_obj_align(_Ctx.pHeaderObj, LV_ALIGN_TOP_LEFT, HeaderOrigin.x, HeaderOrigin.y);
+        lv_obj_add_style(_Ctx.pHeaderObj, OSD_GetStyleTextGrey(), 0);
     }
 
-    if (_Ctx.pFWVersionObj == NULL)
+    if (_Ctx.pDetailsObj == NULL)
     {
-        _Ctx.pFWVersionObj = lv_label_create(pScreen);
-
-        // Print the firmware version
-        lv_obj_add_style(_Ctx.pFWVersionObj, OSD_GetStyleTextWhite(), 0);
-    }
-    else
-    {
-        lv_obj_move_foreground(_Ctx.pFWVersionObj);
+        _Ctx.pDetailsObj = lv_obj_create(pScreen);
+        lv_obj_remove_style_all(_Ctx.pDetailsObj);
+        lv_obj_align(_Ctx.pDetailsObj, LV_ALIGN_TOP_LEFT, DetailsOrigin.x, DetailsOrigin.y);
+        lv_obj_set_size(_Ctx.pDetailsObj, DetailsSize.x, DetailsSize.y);
     }
 
     if (_Ctx.pChromaticImgObj == NULL)
     {
         _Ctx.pChromaticImgObj = lv_img_create(pScreen);
-        lv_obj_align(_Ctx.pChromaticImgObj, LV_ALIGN_BOTTOM_RIGHT, -17, -38);
-    }
-    else
-    {
         lv_img_set_src(_Ctx.pChromaticImgObj, &img_chromatic);
+        lv_obj_align(_Ctx.pChromaticImgObj, LV_ALIGN_BOTTOM_RIGHT, ChromaticOrigin.x, ChromaticOrigin.y);
     }
 
     if (_Ctx.ShowDetails)
     {
-        if (_Ctx.pFPGAVersionObj == NULL)
+        // MCU Text
+        if (_Ctx.pMCUTitle == NULL) 
         {
-            _Ctx.pFPGAVersionObj = lv_label_create(pScreen);
+            _Ctx.pMCUTitle = lv_label_create(_Ctx.pDetailsObj);
+            lv_label_set_text(_Ctx.pMCUTitle, "MCU:");
+            lv_obj_align(_Ctx.pMCUTitle, LV_ALIGN_TOP_LEFT, MCUTitleOrigin.x, MCUTitleOrigin.y);
+            lv_obj_add_style(_Ctx.pMCUTitle, OSD_GetStyleTextGrey(), LV_PART_MAIN);
+        }
 
+        // MCU Version
+        if (_Ctx.pMCUInfo == NULL) 
+        {
+            _Ctx.pMCUInfo = lv_label_create(_Ctx.pDetailsObj);
+            lv_label_set_text(_Ctx.pMCUInfo, (const char*)_Ctx.AppFWVerStr);
+            lv_obj_align(_Ctx.pMCUInfo, LV_ALIGN_TOP_LEFT, MCUVerOrigin.x, MCUVerOrigin.y);
+            lv_obj_add_style(_Ctx.pMCUInfo, OSD_GetStyleTextWhite(), LV_PART_MAIN);
+        }
+
+        // FPGA Text
+        if (_Ctx.pFPGATitle == NULL) 
+        {
+            _Ctx.pFPGATitle = lv_label_create(_Ctx.pDetailsObj);
+            lv_label_set_text(_Ctx.pFPGATitle, "FPGA:");
+            lv_obj_align(_Ctx.pFPGATitle, LV_ALIGN_TOP_LEFT, FPGATitleOrigin.x, FPGATitleOrigin.y);
+            lv_obj_add_style(_Ctx.pFPGATitle, OSD_GetStyleTextGrey(), LV_PART_MAIN);
+        }
+
+        // FPGA Version
+        if (_Ctx.pFPGAInfo == NULL) 
+        {
             lv_snprintf(
                 _Ctx.FPGAVerStr, sizeof(_Ctx.FPGAVerStr),
                 "v%u.%u%s",
@@ -106,33 +147,30 @@ OSD_Result_t Firmware_Draw(void* arg)
                 _Ctx.FPGAVersionMinor,
                 _Ctx.FPGA_IsDebugBuild ? " (dbg)" : " "
             );
-
-            // Display the firmware version
-            lv_obj_add_style(_Ctx.pFPGAVersionObj, OSD_GetStyleTextWhite(), 0);
-            lv_obj_align(_Ctx.pFPGAVersionObj, LV_ALIGN_TOP_LEFT, FPGAVerOrigin.x, FPGAVerOrigin.y);
-            lv_label_set_text(_Ctx.pFPGAVersionObj, (const char*)_Ctx.FPGAVerStr);
+            _Ctx.pFPGAInfo = lv_label_create(_Ctx.pDetailsObj);
+            lv_label_set_text(_Ctx.pFPGAInfo, (const char*)_Ctx.FPGAVerStr);
+            lv_obj_align(_Ctx.pFPGAInfo, LV_ALIGN_TOP_LEFT, FPGAVerOrigin.x, FPGAVerOrigin.y);
+            lv_obj_add_style(_Ctx.pFPGAInfo, OSD_GetStyleTextWhite(), LV_PART_MAIN);
+        }
+    }
+    else 
+    {
+        // App FW Text
+        if (_Ctx.pFWTitle == NULL) 
+        {
+            _Ctx.pFWTitle = lv_label_create(_Ctx.pDetailsObj);
+            lv_label_set_text(_Ctx.pFWTitle, "FW:");
+            lv_obj_align(_Ctx.pFWTitle, LV_ALIGN_TOP_LEFT, FWTitleOrigin.x, FWTitleOrigin.y);
+            lv_obj_add_style(_Ctx.pFWTitle, OSD_GetStyleTextGrey(), LV_PART_MAIN);
         }
 
-        // Display the application FW version
-        lv_obj_align(_Ctx.pMessageObj, LV_ALIGN_TOP_LEFT, MessageOrigin.x, MessageOrigin.y);
-        lv_label_set_text(_Ctx.pMessageObj, "SYSTEM    INFO\n\nMCU:\nFPGA:");
-        lv_label_set_text(_Ctx.pFWVersionObj, (const char*)_Ctx.AppFWVerStr);
-
-        lv_obj_align(_Ctx.pFWVersionObj, LV_ALIGN_TOP_LEFT, MCUVerOrigin.x, MCUVerOrigin.y);
-    }
-    else
-    {
-        lv_obj_align(_Ctx.pMessageObj, LV_ALIGN_TOP_LEFT, MessageOrigin.x, MessageOrigin.y);
-        lv_label_set_text(_Ctx.pMessageObj, "THIS DEVICE IS\nRUNNING FW:");
-
-        // Display the top-level Chromatic fw version
-        lv_label_set_text(_Ctx.pFWVersionObj, (const char*)_Ctx.ChromaticFWVerStr);
-        lv_obj_align(_Ctx.pFWVersionObj, LV_ALIGN_TOP_LEFT, FWVerOrigin.x, FWVerOrigin.y);
-
-        if (_Ctx.pFPGAVersionObj != NULL)
+        // App FW Version
+        if (_Ctx.pFWInfo == NULL) 
         {
-            lv_obj_del(_Ctx.pFPGAVersionObj);
-            _Ctx.pFPGAVersionObj = NULL;
+            _Ctx.pFWInfo = lv_label_create(_Ctx.pDetailsObj);
+            lv_label_set_text(_Ctx.pFWInfo, (const char*)_Ctx.ChromaticFWVerStr);
+            lv_obj_align(_Ctx.pFWInfo, LV_ALIGN_TOP_LEFT, FWVerOrigin.x, FWVerOrigin.y);
+            lv_obj_add_style(_Ctx.pFWInfo, OSD_GetStyleTextWhite(), LV_PART_MAIN);
         }
     }
 
@@ -144,17 +182,28 @@ OSD_Result_t Firmware_OnTransition(void* arg)
     (void)(arg);
 
     const lv_obj_t** ToDelete[] = {
+        (const lv_obj_t**)&_Ctx.pHeaderObj,
+        (const lv_obj_t**)&_Ctx.pDetailsObj,
         (const lv_obj_t**)&_Ctx.pChromaticImgObj,
-        (const lv_obj_t**)&_Ctx.pMessageObj,
-        (const lv_obj_t**)&_Ctx.pFWVersionObj,
-        (const lv_obj_t**)&_Ctx.pFPGAVersionObj,
+        // Children of pDetailsObj
+        (const lv_obj_t**)&_Ctx.pMCUTitle,
+        (const lv_obj_t**)&_Ctx.pMCUInfo,
+        (const lv_obj_t**)&_Ctx.pFPGATitle,
+        (const lv_obj_t**)&_Ctx.pFPGAInfo,
+        (const lv_obj_t**)&_Ctx.pFWTitle,
+        (const lv_obj_t**)&_Ctx.pFWInfo
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(ToDelete); i++)
     {
         if (*ToDelete[i] != NULL)
         {
-            lv_obj_del((lv_obj_t*)*ToDelete[i]);
+            // LVGL children objs will still have an address, but don't exist inside
+            // hierarchy, so they need to be double checked
+            if (lv_obj_is_valid((lv_obj_t*)*ToDelete[i]))
+            {
+                lv_obj_del((lv_obj_t*)*ToDelete[i]);
+            }
             *(ToDelete[i]) = NULL;
         }
     }
@@ -174,6 +223,9 @@ OSD_Result_t Firmware_OnButton(const Button_t Button, const ButtonState_t State,
             if (State == kButtonState_Pressed)
             {
                 _Ctx.ShowDetails = !_Ctx.ShowDetails;
+
+                // Clear cached objects, so details get redrawn correctly
+                Firmware_OnTransition(NULL);
             }
             break;
         }

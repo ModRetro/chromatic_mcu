@@ -120,10 +120,28 @@ OSD_Result_t ScreenTransitCtl_OnButton(const Button_t Button, const ButtonState_
         {
             if (State == kButtonState_Pressed)
             {
-                const ScreenTransitCtlState_t eState = _Ctx.eCurrentState;
-                ESP_LOGI(TAG, "Updating Screen transition control from %d", eState);
+                ScreenTransitCtlState_t NewState = _Ctx.eCurrentState + 1;
+                NewState %= kNumScreenTransitCtlState;
 
-                ScreenTransitCtl_Update(eState ^ 1);
+                ScreenTransitCtl_Update(NewState);
+            }
+            break;
+        }
+        case kButton_B:
+        {
+            if (State == kButtonState_Pressed)
+            {
+                ScreenTransitCtlState_t NewState = _Ctx.eCurrentState;
+                if (NewState > 0)
+                {
+                    NewState--;
+                }
+                else
+                {
+                    NewState = kNumScreenTransitCtlState - 1;
+                }
+
+                ScreenTransitCtl_Update(NewState);
             }
             break;
         }

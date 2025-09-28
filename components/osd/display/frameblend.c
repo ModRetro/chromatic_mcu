@@ -56,7 +56,7 @@ OSD_Result_t FrameBlend_Draw(void* arg)
             lv_obj_align(_Ctx.pImgToggleOffObj, LV_ALIGN_TOP_LEFT, kToggleBtnX_px, kToggleBtnY_px);
             lv_img_set_src(_Ctx.pImgToggleOffObj, &img_toggle_off);
 
-            // In the Off state, the 3:1 text should be displayed in the area where On normally is
+            // In the Off state, the text should be displayed in the area where On normally is
             lv_obj_set_pos(_Ctx.pMsgStateObj, kMsgStateOff_px, kMsgStateY_px);
             lv_label_set_text_static(_Ctx.pMsgStateObj, "OFF");
         }
@@ -69,9 +69,9 @@ OSD_Result_t FrameBlend_Draw(void* arg)
             lv_obj_align(_Ctx.pImgToggleOnObj, LV_ALIGN_TOP_LEFT, kToggleBtnX_px, kToggleBtnY_px);
             lv_img_set_src(_Ctx.pImgToggleOnObj, &img_toggle_on);
 
-            // In the On state, the 3:1 text should be displayed in the area where Off normally is
+            // In the On state, the text should be displayed in the area where Off normally is
             lv_obj_set_pos(_Ctx.pMsgStateObj, kMsgStateOnX_px, kMsgStateY_px);
-            lv_label_set_text_static(_Ctx.pMsgStateObj, "ON                     3:1");
+            lv_label_set_text_static(_Ctx.pMsgStateObj, "ON                     1:1");
         }
     }
 
@@ -128,10 +128,29 @@ OSD_Result_t FrameBlend_OnButton(const Button_t Button, const ButtonState_t Stat
         {
             if (State == kButtonState_Pressed)
             {
-                const FrameBlendState_t eState = _Ctx.eCurrentState;
-                ESP_LOGI(TAG, "Updating Frame Blend from %d", eState);
+                FrameBlendState_t NewState = _Ctx.eCurrentState + 1;
+                NewState %= kNumFrameBlendState;
 
-                FrameBlend_Update(eState ^ 1);
+                FrameBlend_Update(NewState);
+            }
+            break;
+        }
+        case kButton_B:
+        {
+            if (State == kButtonState_Pressed)
+            {
+                FrameBlendState_t NewState = _Ctx.eCurrentState;
+
+                if (NewState > 0)
+                {
+                    NewState--;
+                }
+                else
+                {
+                    NewState = kNumFrameBlendState - 1;
+                }
+
+                FrameBlend_Update(NewState);
             }
             break;
         }

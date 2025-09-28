@@ -26,6 +26,7 @@
 #include "osd.h"
 #include "osd_default.h"
 #include "low_batt_icon_ctl.h"
+#include "style.h"
 #include "player_num.h"
 #include "screen_transit_ctl.h"
 #include "mutex.h"
@@ -153,6 +154,7 @@ static void register_update_callbacks(void)
     DPadCtl_RegisterOnUpdateCb(FPGA_Tx_SendSysCtl);
     LowBattIconCtl_RegisterOnUpdateCb(FPGA_Tx_SendSysCtl);
     Button_RegisterOnButtonPokeCb(FPGA_Tx_PokeButtons);
+    Style_RegisterOnUpdateCb(FPGA_Tx_WritePaletteStyle);
 }
 
 static void persist_storage_init(void)
@@ -172,6 +174,7 @@ static void persist_storage_init(void)
         [kSettingKey_ScreenTransitCtl] = ScreenTransitCtl_ApplySetting,
         [kSettingKey_DPadCtl]          = DPadCtl_ApplySetting,
         [kSettingKey_LowBattIconCtl]   = LowBattIconCtl_ApplySetting,
+        [kSettingKey_PaletteStyleID]   = Style_ApplySetting,
     };
 
     OSD_Result_t eResult;
@@ -246,6 +249,11 @@ void app_main(void)
 
     // Task is created earlier than the others to apply the settings ASAP
     xTaskCreate(FPGA_TxTask, "fpga_tx_task", kFPGATxTask_StackDepth, NULL, kFPGATxTask_Priority, FPGA_GetTxTaskHandle());
+
+    // Task is created early in order to recieve fast messages (e.g hotkey palette data)
+    // These tasks are started in the "paused" state
+    xTaskCreate(FPGA_RxTask, "fpga_rx_task", kFPGARxTask_StackDepth, NULL, kFPGARxTask_Priority, FPGA_GetRxTaskHandle());
+
     // Let the tasks run for a bit to transmit config data to the FPGA core
     const size_t kTransmitCfgCounts = 6;
     for(size_t i = 0; i < kTransmitCfgCounts; i++)
@@ -326,9 +334,6 @@ void app_main(void)
     Gfx_Start(scr);
 
     xTaskCreatePinnedToCore(lvglTimerTask, "lvgl Timer", kTimerTask_StackDepth, NULL, 4, NULL, 1);
-
-    // These tasks are started in the "paused" state
-    xTaskCreate(FPGA_RxTask, "fpga_rx_task", kFPGARxTask_StackDepth, NULL, kFPGARxTask_Priority, FPGA_GetRxTaskHandle());
 
     // Prompt to be printed before each line.
     ReplConfig.prompt = "mcu> ";

@@ -21,6 +21,12 @@ typedef struct Tab_DrawCtx {
     lv_color_t AccentColor;
 } Tab_DrawCtx_t;
 
+typedef struct TabTable_DrawCtx {
+    lv_obj_t* pTable;
+    TabItem_t* pItem;
+    uint16_t CurrID;
+} TabTable_DrawCtx_t;
+
 OSD_Result_t Tab_AddItem(TabCollection_t *const pList, TabItem_t *const pItem, lv_obj_t* pScreen);
 OSD_Result_t Tab_OnButton(const Button_t Button, const ButtonState_t State, void *arg);
 void Tab_Next(TabCollection_t *const pList);
