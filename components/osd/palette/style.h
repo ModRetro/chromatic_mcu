@@ -3,7 +3,7 @@
 #include "osd_shared.h"
 #include "settings.h"
 
-typedef enum StyleID{
+typedef enum StyleID {
     kPalette_Default,
     kPalette_Brown,
     kPalette_Blue,
@@ -21,19 +21,21 @@ typedef enum StyleID{
     kPalette_DMG2,
 
     kNumPalettes,
-    kCustomPaletteEn = 63  // Custom palette bit; when set the chosen palette is enabled
 } StyleID_t;
+
+enum {
+    kCustomPaletteEn = 63,     // Custom palette enable bit; when set the chosen palette is enabled
+    kCustomPaletteObjSel = 63, // Sprite selection bit
+};
 
 OSD_Result_t Style_Draw(void* arg);
 void Style_Update(const StyleID_t NewID);
-OSD_Result_t Style_OnButton(const Button_t Button, const ButtonState_t State, void *arg);
+OSD_Result_t Style_OnButton(const Button_t Button, const ButtonState_t State, void* arg);
 OSD_Result_t Style_OnTransition(void* arg);
-uint64_t Style_GetPaletteBG(const StyleID_t ID);
 StyleID_t Style_GetCurrID(void);
 OSD_Result_t Style_ApplySetting(const SettingValue_t* pValue);
 void Style_RegisterOnUpdateCb(fnOnUpdateCb_t fnOnUpdate);
 void Style_SetGBCMode(const bool GBCMode);
-void Style_SetHKPaletteBG(const uint64_t paletteBG);
+void Style_SetHKPalette(const uint64_t bootPalette);
 bool Style_IsInitialized(void);
 void Style_Initialize(void);
-

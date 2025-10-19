@@ -378,7 +378,7 @@ static void ProcessMessage(const RxMsg_t *const pMsg)
                 uint64_t paletteBGRaw = 0;
                 memcpy(&paletteBGRaw, pMsg->Payload, 8);
                 const uint64_t paletteBG = __builtin_bswap64(paletteBGRaw);
-                Style_SetHKPaletteBG(paletteBG);
+                Style_SetHKPalette(paletteBG);
             } else 
             {
                 ESP_LOGW(TAG, "BG Palette readback: unexpected length %d", pMsg->Len);

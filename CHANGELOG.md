@@ -1,3 +1,12 @@
+## v0.13.4
+
+### Note
+The FPGA must be updated to v18.7 or newer for fixed sprite palette behavior
+
+### Changed
+- Fixed bug where sprite palettes are not set correctly when using palette
+selection tab.
+
 ## v0.13.3
 
 ### Note

@@ -2,11 +2,10 @@
 
 #include "battery.h"
 #include "brightness.h"
-#include "screen_transit_ctl.h"
-#include "dpad_ctl.h"
 #include "color_correct_lcd.h"
 #include "color_correct_usb.h"
 #include "crc8_sae_j1850.h"
+#include "dpad_ctl.h"
 #include "driver/uart.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -15,9 +14,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "low_batt_icon_ctl.h"
-#include "style.h"
+#include "palette.h"
 #include "player_num.h"
+#include "screen_transit_ctl.h"
 #include "silent.h"
+#include "style.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -155,21 +156,31 @@ void FPGA_TxTask(void *arg)
         {
             if (!Style_IsInitialized())
             {
-                // Prevent palette from being sent fast on initail SendAll()s
+                // Prevent palette from being sent fast on initial SendAll()s
                 // so that there is time to read back the hotkey data from FPGA
                 vTaskDelay( pdMS_TO_TICKS(50) );
                 Style_Initialize();
             }
             const StyleID_t ID = Style_GetCurrID();
-            const uint64_t PaletteBG = Style_GetPaletteBG(ID);
+            const uint64_t ColorBG = Pal_GetColor(ID, kPalette_Bg);
             // toggle custom palette enable bit
-            const uint64_t Payload = __builtin_bswap64(PaletteBG ^ ((uint64_t)1 << kCustomPaletteEn));
+            const uint64_t PayloadBG = __builtin_bswap64(ColorBG ^ ((uint64_t)1 << kCustomPaletteEn));
 
-            const size_t Size = SetupTxBuffer(TxBuffer, kTxCmd_BGPaletteCtl, sizeof(Payload), (void*)&Payload);
+            // BG
+            const size_t Size = SetupTxBuffer(TxBuffer, kTxCmd_BGPaletteCtl, sizeof(PayloadBG), (void*)&PayloadBG);
             (void) uart_write_bytes(UART_NUM_1, TxBuffer, Size);
 
-            const size_t Size2 = SetupTxBuffer(TxBuffer, kTxCmd_SpritePaletteCtl, sizeof(Payload), (void*)&Payload);
-            (void) uart_write_bytes(UART_NUM_1, TxBuffer, Size2);
+            // Sprite - Obj0
+            const uint64_t ColorObj0 = Pal_GetColor(ID, kPalette_Obj0);
+            const uint64_t PayloadObj0 = __builtin_bswap64(ColorObj0);
+            const size_t Size2 = SetupTxBuffer(TxBuffer, kTxCmd_SpritePaletteCtl, sizeof(PayloadObj0), (void*)&PayloadObj0);
+            (void)uart_write_bytes(UART_NUM_1, TxBuffer, Size2);
+
+            // Sprite - Obj1
+            const uint64_t ColorObj1 = Pal_GetColor(ID, kPalette_Obj1);
+            const uint64_t PayloadObj1 = __builtin_bswap64(ColorObj1 | ((uint64_t)1 << kCustomPaletteObjSel));
+            const size_t Size3 = SetupTxBuffer(TxBuffer, kTxCmd_SpritePaletteCtl, sizeof(PayloadObj1), (void*)&PayloadObj1);
+            (void)uart_write_bytes(UART_NUM_1, TxBuffer, Size3);
         }
 
         memset(TxBuffer, 0x0, sizeof(TxBuffer));

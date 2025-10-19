@@ -1,4 +1,5 @@
 #include "style.h"
+#include "palette.h"
 
 #include "esp_log.h"
 #include "osd_shared.h"
@@ -31,6 +32,10 @@ enum {
     kNdctrW_px       = 3,
     kNdctrH_px       = 6,
     kNdctrBorderW_px = 2,  // Needs to be 2 for LVGL to render triangle properly
+
+    kStyle_Clr3 = 48,
+    kStyle_Clr2 = 32,
+    kStyle_Clr1 = 16,
 };
 
 // Palette style preview colors
@@ -47,30 +52,9 @@ static const uint32_t PaletteStyleColors[kNumPalettes] = {
     [kPalette_DarkBrown] = 0x723809,
     [kPalette_Grayscale] = 0x939393,
     [kPalette_Yellow]    = 0xFBE894,
-    [kPalette_Negative]  = 0xFFFFFF, 
+    [kPalette_Negative]  = 0xFFFFFF,
     [kPalette_DMG1]      = 0xB8C1A0,
     [kPalette_DMG2]      = 0x998E30
-};
-
-//  Taken from chromatic_hdl: esp32t/src/rtl/EMU/CORE/BootROMs/cgb_boot.asm#L501
-//  color order is reversed in the palette style
-//  24-bit colors can be converted to 15-bit from https://tcrf.net/Notes:Game_Boy_Color_Bootstrap_ROM
-static const uint64_t PaletteStyleBG[kNumPalettes] = {
-    [kPalette_Default]   = 0x8000000000000000,  // Default color is obtained by turning off the custom palette bit
-    [kPalette_Brown]     = 0x000000D032BF7FFF,  // Palette: 0
-    [kPalette_Blue]      = 0x00007C007E8C7FFF,  // Palette: 28
-    [kPalette_Pastel]    = 0x00007E524A5F53FF,  // Palette: 12
-    [kPalette_Green]     = 0x0000011F03EA7FFF,  // Palette: 18
-    [kPalette_Red]       = 0x00001CF2421F7FFF,  // Palette: 4
-    [kPalette_DarkBlue]  = 0x0000454A6E317FFF,  // Palette: 2
-    [kPalette_Orange]    = 0x0000001F03FF7FFF,  // Palette: 24
-    [kPalette_DarkGreen] = 0x000061801BEF7FFF,  // Palette: 29
-    [kPalette_DarkBrown] = 0x04CB15B04279639F,  // Palette: 1
-    [kPalette_Grayscale] = 0x0000294A52947FFF,  // Palette: 5
-    [kPalette_Yellow]    = 0x0000012F03FF7FFF,  // Palette: 6
-    [kPalette_Negative]  = 0x7FFF037442000000,  // Palette: 27
-    [kPalette_DMG1]      = 0x1DC02A603B4043E0,  // Palette: 30
-    [kPalette_DMG2]      = 0x00E20147018B01EF   // Palette: 31
 };
 
 typedef struct PaletteCtl {
@@ -81,6 +65,7 @@ typedef struct PaletteCtl {
     bool GBCMode;   // True if the current game is a GBC game
     bool Initialized;
     bool TableCbAdded;
+    bool HotKeyUsedAtBoot;
 } PaletteCtl_t;
 
 static const char* TAG = "PaletteCtl";
@@ -111,7 +96,7 @@ OSD_Result_t Style_Draw(void* arg)
         // Style_Draw is called kNumPalette times. When in GBC mode, we only want to draw the eyebrow and text once
         if (CurrID == kPalette_Default)
         {
-            lv_obj_t* pEyebrow = lv_img_create(pItem->DataObj); 
+            lv_obj_t* pEyebrow = lv_img_create(pItem->DataObj);
             lv_img_set_src(pEyebrow, &img_chromatic_eyebrow);
             lv_obj_align(pEyebrow, LV_ALIGN_TOP_LEFT, kGBCImgOffsetX_px, kGBCImgOffsetY_px);
 
@@ -120,14 +105,11 @@ OSD_Result_t Style_Draw(void* arg)
             lv_obj_align(pText, LV_ALIGN_TOP_LEFT, kGBCTxtOffsetX_px, kGBCTxtOffsetY_px);
             lv_obj_add_style(pText, OSD_GetStyleTextWhite(), LV_PART_MAIN);
             lv_obj_set_width(pText, kGBCTxtW_px);
-        } 
+        }
     } else {
         const char* CellText;
 
-        if ((_Ctx.HotKeyStyleID != kPalette_Default) &&  // Hotkey is used
-            (_Ctx.SavedStyleID == kPalette_Default) &&   // No saved style
-            (CurrID % kNumRows == 0) &&                  // Row 0 
-            (CurrID / kNumRows == 0))                    // Col 0
+        if (_Ctx.HotKeyUsedAtBoot && (CurrID % kNumRows == 0) && (CurrID / kNumRows == 0))
         {
             CellText = "HOTKEY";
         }
@@ -190,7 +172,7 @@ void Style_Update(const StyleID_t NewID)
 }
 
 OSD_Result_t Style_OnButton(const Button_t Button, const ButtonState_t State, void *arg)
-{ 
+{
     (void)arg;
 
     if (!_Ctx.GBCMode)
@@ -236,17 +218,6 @@ OSD_Result_t Style_OnTransition(void* arg)
     return kOSD_Result_Ok;
 }
 
-uint64_t Style_GetPaletteBG(const StyleID_t ID)
-{
-    if ((unsigned)ID >= kNumPalettes)
-    {
-        ESP_LOGE(TAG, "Invalid palette index: %u", ID);
-        return PaletteStyleBG[kPalette_Default];  // Return default background if index is invalid
-    }
-
-    return PaletteStyleBG[ID];
-}
-
 StyleID_t Style_GetCurrID(void)
 {
     return _Ctx.CurrStyleID;
@@ -281,10 +252,25 @@ void Style_SetGBCMode(const bool GBCMode)
     _Ctx.GBCMode = GBCMode;
 }
 
-void Style_SetHKPaletteBG(const uint64_t paletteBG)
+void Style_SetHKPalette(const uint64_t bootPalette)
 {
     for (StyleID_t i = 0; i < kNumPalettes; i++) {
-        if (PaletteStyleBG[i] == paletteBG)
+        // Get BG and OBJ1 palettes for this style
+        const uint64_t bgPalette = Pal_GetColor(i, kPalette_Bg);
+        const uint64_t obj1Palette = Pal_GetColor(i, kPalette_Obj1);
+
+        // Extract clr0x01 and clr0x02 from BG palette
+        const uint16_t bgClr1 = (bgPalette >> kStyle_Clr1) & 0xFFFF;
+        const uint16_t bgClr2 = (bgPalette >> kStyle_Clr2) & 0xFFFF;
+
+        // Extract clr0x01 and clr0x02 from OBJ1 palette
+        const uint16_t obj1Clr1 = (obj1Palette >> kStyle_Clr1) & 0xFFFF;
+        const uint16_t obj1Clr2 = (obj1Palette >> kStyle_Clr2) & 0xFFFF;
+
+        // layout should be [obj1clr2][obj1clr1][bgclr2][bgclr1]
+        const uint64_t combinedPalette = ((uint64_t)obj1Clr2 << kStyle_Clr3) | ((uint64_t)obj1Clr1 << kStyle_Clr2) |
+                                         ((uint64_t)bgClr2 << kStyle_Clr1) | ((uint64_t)bgClr1);
+        if (combinedPalette == bootPalette)
         {
             _Ctx.HotKeyStyleID = i;
             break;
@@ -304,8 +290,9 @@ void Style_Initialize(void)
     if ((_Ctx.HotKeyStyleID != kPalette_Default) && (_Ctx.SavedStyleID == kPalette_Default))
     {
         Style_Update(_Ctx.HotKeyStyleID);
+        _Ctx.HotKeyUsedAtBoot = true;
         ESP_LOGI(TAG, "Palette initialized to: Hotkey palette=%u", _Ctx.HotKeyStyleID);
-    } 
+    }
     else if (_Ctx.SavedStyleID != kPalette_Default)
     {
         Style_Update(_Ctx.SavedStyleID);
@@ -330,7 +317,7 @@ static void StyleOnEventDrawCb(lv_event_t * e)
     lv_obj_t* pTable = lv_event_get_target(e);
     lv_obj_draw_part_dsc_t* pDsc = lv_event_get_draw_part_dsc(e);
 
-    if(pDsc->part == LV_PART_ITEMS) 
+    if(pDsc->part == LV_PART_ITEMS)
     {
         // pDsc->id is incremented in row-major order
         const uint32_t row = pDsc->id / lv_table_get_col_cnt(pTable);
