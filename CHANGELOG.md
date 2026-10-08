@@ -1,3 +1,8 @@
+## v0.13.8
+
+### Changed
+- Updated FPGA version number
+
 ## v0.13.7
 
 ### Changed
