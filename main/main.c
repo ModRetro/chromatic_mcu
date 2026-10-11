@@ -37,6 +37,11 @@
 #include "silent.h"
 #include "pwrmgr.h"
 
+// VSPI_HOST is defined in ESP-IF v5.3, but replaced with SPI3_HOST in v6.1
+#ifndef VSPI_HOST
+#define VSPI_HOST SPI3_HOST
+#endif
+
 enum {
     kLVGL_TickPeriod_us = 1000u, // 1 millisecond
 };
